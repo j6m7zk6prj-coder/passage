@@ -1,5 +1,6 @@
 name: Passages
 options:
+  developmentLanguage: fr
   bundleIdPrefix: com.passages
   deploymentTarget:
     iOS: "17.0"
@@ -31,6 +32,9 @@ targets:
       path: Passages/Info.plist
       properties:
         CFBundleDisplayName: Passages
+        CFBundleDevelopmentRegion: fr
+        CFBundleLocalizations:
+          - fr
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSRequiresIPhoneOS: true

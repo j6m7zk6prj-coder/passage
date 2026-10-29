@@ -58,6 +58,48 @@ final class StopStore {
         return Array(result.prefix(60))
     }
 
+    /// Lignes correspondant à la recherche : « T8 », « 91 », « RER A », « métro 14 », « ligne 7 »…
+    func searchLines(_ query: String) -> [Line] {
+        var q = Self.normalize(query).trimmingCharacters(in: .whitespaces)
+        guard !q.isEmpty else { return [] }
+        var wanted: TransportKind?
+        let prefixes: [(String, TransportKind?)] = [("ligne ", nil), ("bus ", .bus), ("tram ", .tram), ("tramway ", .tram),
+                                                    ("metro ", .metro), ("m ", .metro), ("rer ", .rer), ("train ", .train), ("transilien ", .train)]
+        for (prefix, kind) in prefixes where q.hasPrefix(prefix) {
+            q = String(q.dropFirst(prefix.count)).trimmingCharacters(in: .whitespaces)
+            if let kind { wanted = kind }
+        }
+        // « M14 » -> métro 14 ; « T 8 » -> T8
+        if q.count >= 2, q.first == "m", q.dropFirst().allSatisfy(\.isNumber) { q = String(q.dropFirst()); wanted = wanted ?? .metro }
+        let compact = q.replacingOccurrences(of: " ", with: "")
+        guard !compact.isEmpty else { return [] }
+
+        let all = Array(lineById.values)
+        let exact = all.filter { Self.normalize($0.shortName).replacingOccurrences(of: " ", with: "") == compact }
+        var result = exact
+        if result.isEmpty || compact.count >= 3 {
+            // Recherche dans le nom de la ligne (ex. « Noctilien », « Orlybus »)
+            let byName = all.filter { line in
+                let name = Self.normalize(line.name + " " + line.shortName)
+                return compact.count >= 3 && name.contains(q) && !exact.contains(line)
+            }
+            result += byName
+        }
+        if let wanted { result = result.filter { $0.kind == wanted || ($0.kind == .rer && wanted == .train) } }
+        // Seulement les lignes qui ont des arrêts
+        let served = Set(stops.flatMap { $0.lineIds })
+        return result.filter { served.contains($0.id) }.sorted(by: Self.lineOrder).prefix(40).map { $0 }
+    }
+
+    /// Arrêts desservis par une ligne (du plus proche au plus loin si la position est connue).
+    func stops(forLine id: String, near location: CLLocation?) -> [Stop] {
+        let list = stops.filter { $0.lineIds.contains(id) }
+        if let location {
+            return list.sorted { $0.location.distance(from: location) < $1.location.distance(from: location) }
+        }
+        return list.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+
     // MARK: - Proximité
 
     /// Arrêts les plus proches, avec leur distance en mètres.
