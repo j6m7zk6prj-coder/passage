@@ -1,0 +1,65 @@
+name: Construire l'IPA
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+  schedule:
+    # Reconstruit chaque lundi pour garder les arrêts/lignes à jour
+    - cron: "0 4 * * 1"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Outils
+        run: brew install xcodegen xcbeautify
+
+      - name: Télécharger les arrêts et lignes IDFM
+        run: python3 scripts/build_data.py
+
+      - name: Générer le projet Xcode
+        run: xcodegen generate
+
+      - name: Compiler (sans signature)
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Passages.xcodeproj \
+            -scheme Passages \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build | xcbeautify --renderer github-actions
+
+      - name: Emballer en .ipa
+        run: |
+          rm -rf Payload Passages.ipa
+          mkdir Payload
+          cp -R build/Build/Products/Release-iphoneos/Passages.app Payload/
+          zip -qry Passages.ipa Payload
+          ls -lh Passages.ipa
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Passages-ipa
+          path: Passages.ipa
+
+      - name: Publier dans « Releases »
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest Passages.ipa \
+            --title "Passages — dernière version" \
+            --notes "Compilé automatiquement le $(date -u '+%d/%m/%Y à %H:%M UTC'). Télécharge Passages.ipa et installe-le avec iLoader."

@@ -1,0 +1,9 @@
+.DS_Store
+build/
+Payload/
+*.ipa
+Passages.xcodeproj/
+Passages/Info.plist
+Passages/Resources/stops.json
+Passages/Resources/lines.json
+xcuserdata/
