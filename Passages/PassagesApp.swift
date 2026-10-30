@@ -23,10 +23,12 @@ struct RootView: View {
         TabView {
             NearbyView()
                 .tabItem { Label("À proximité", systemImage: "location.fill") }
-            FavoritesView()
-                .tabItem { Label("Favoris", systemImage: "star.fill") }
+            ItineraryView()
+                .tabItem { Label("Itinéraire", systemImage: "arrow.triangle.turn.up.right.diamond.fill") }
             StopsMapView()
                 .tabItem { Label("Carte", systemImage: "map.fill") }
+            FavoritesView()
+                .tabItem { Label("Favoris", systemImage: "star.fill") }
             SearchStopsView()
                 .tabItem { Label("Rechercher", systemImage: "magnifyingglass") }
         }
